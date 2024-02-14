@@ -4,3 +4,4 @@
 bin/
 e2e-logs
 ebpf-agent.tar
+netobserv-ebpf-agent.code-workspace

@@ -216,7 +216,7 @@ func buildGRPCExporter(cfg *Config) (node.TerminalFunc[[]*flow.Record], error) {
 		return nil, fmt.Errorf("missing target host or port: %s:%d",
 			cfg.TargetHost, cfg.TargetPort)
 	}
-	grpcExporter, err := exporter.StartGRPCProto(cfg.TargetHost, cfg.TargetPort, cfg.GRPCMessageMaxFlows)
+	grpcExporter, err := exporter.StartGRPCProto(cfg.TargetHost, cfg.TargetPort, cfg.GRPCMessageMaxFlows, cfg.GRPCExcludeDestIps)
 	if err != nil {
 		return nil, err
 	}

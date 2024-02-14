@@ -28,7 +28,7 @@ func TestIPv4GRPCProto_ExportFlows_AgentIP(t *testing.T) {
 	defer coll.Close()
 
 	// Start GRPCProto exporter stage
-	exporter, err := StartGRPCProto("127.0.0.1", port, 1000)
+	exporter, err := StartGRPCProto("127.0.0.1", port, 1000, "")
 	require.NoError(t, err)
 
 	// Send some flows to the input of the exporter stage
@@ -70,7 +70,7 @@ func TestIPv6GRPCProto_ExportFlows_AgentIP(t *testing.T) {
 	defer coll.Close()
 
 	// Start GRPCProto exporter stage
-	exporter, err := StartGRPCProto("::1", port, 1000)
+	exporter, err := StartGRPCProto("::1", port, 1000, "")
 	require.NoError(t, err)
 
 	// Send some flows to the input of the exporter stage
@@ -113,7 +113,7 @@ func TestGRPCProto_SplitLargeMessages(t *testing.T) {
 
 	const msgMaxLen = 10000
 	// Start GRPCProto exporter stage
-	exporter, err := StartGRPCProto("127.0.0.1", port, msgMaxLen)
+	exporter, err := StartGRPCProto("127.0.0.1", port, msgMaxLen, "")
 	require.NoError(t, err)
 
 	// Send a message much longer than the limit length
@@ -142,4 +142,62 @@ func TestGRPCProto_SplitLargeMessages(t *testing.T) {
 	default:
 		//ok!
 	}
+}
+
+func TestGRPCProto_FilterIp(t *testing.T) {
+	// start remote ingestor
+	port, err := test.FreeTCPPort()
+	require.NoError(t, err)
+
+	serverOut := make(chan *pbflow.Records)
+	coll, err := grpc.StartCollector(port, serverOut)
+	require.NoError(t, err)
+	defer coll.Close()
+
+	const msgMaxLen = 10000
+
+	r1 := flow.Record{}
+	r1.Id.EthProtocol = 3
+	r1.Id.Direction = 1
+	r1.Id.SrcMac = [...]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
+	r1.Id.DstMac = [...]byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
+	r1.Id.SrcIp = IPAddrFromNetIP(net.ParseIP("192.1.2.3"))
+	r1.Id.DstIp = IPAddrFromNetIP(net.ParseIP("127.3.2.1"))
+	r1.Id.SrcPort = 4321
+	r1.Id.DstPort = 1234
+	r1.Id.IcmpType = 8
+	r1.Id.TransportProtocol = 210
+	r1.TimeFlowStart = time.Now().Add(-5 * time.Second)
+	r1.TimeFlowEnd = time.Now()
+	r1.Metrics.Bytes = 789
+	r1.Metrics.Packets = 987
+	r1.Metrics.Flags = uint16(1)
+	r1.Interface = "veth0"
+
+	r2 := flow.Record{}
+	r2.Id.EthProtocol = 3
+	r2.Id.Direction = 1
+	r2.Id.SrcMac = [...]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
+	r2.Id.DstMac = [...]byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
+	r2.Id.SrcIp = IPAddrFromNetIP(net.ParseIP("192.1.2.3"))
+	r2.Id.DstIp = IPAddrFromNetIP(net.ParseIP("128.3.2.1"))
+	r2.Id.SrcPort = 4321
+	r2.Id.DstPort = 1234
+	r2.Id.IcmpType = 8
+	r2.Id.TransportProtocol = 210
+	r2.TimeFlowStart = time.Now().Add(-5 * time.Second)
+	r2.TimeFlowEnd = time.Now()
+	r2.Metrics.Bytes = 789
+	r2.Metrics.Packets = 987
+	r2.Metrics.Flags = uint16(1)
+	r2.Interface = "veth0"
+
+	// Start GRPCProto exporter stage
+	exporter, err := StartGRPCProto("127.0.0.1", port, msgMaxLen, "127,192")
+	require.NoError(t, err)
+
+	records := []*flow.Record{&r1, &r2}
+	r := exporter.FilterIPs(records)
+
+	assert.Len(t, r, 1)
 }

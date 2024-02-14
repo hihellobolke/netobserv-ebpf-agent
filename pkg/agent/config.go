@@ -45,6 +45,9 @@ type Config struct {
 	// GRPCMessageMaxFlows specifies the limit, in number of flows, of each GRPC message. Messages
 	// larger than that number will be split and submitted sequentially.
 	GRPCMessageMaxFlows int `env:"GRPC_MESSAGE_MAX_FLOWS" envDefault:"10000"`
+	// GRPCExcludeDestIps is a comma-separated list of ip prefixes that will be excluded out from the flows
+	// whenever destination ip addr matches. If empty, no filter will be applied.
+	GRPCExcludeDestIps string `env:"GRPC_EXCLUDE_DESTINATION_IPS" envDefault:""`
 	// Interfaces contains the interface names from where flows will be collected. If empty, the agent
 	// will fetch all the interfaces in the system, excepting the ones listed in ExcludeInterfaces.
 	// If an entry is enclosed by slashes (e.g. `/br-/`), it will match as regular expression,
